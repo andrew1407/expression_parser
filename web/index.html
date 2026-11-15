@@ -39,7 +39,18 @@
     h1 { font-size: 24px; margin: 0; letter-spacing: -.01em; }
     header p { margin: 0; color: var(--muted); flex: 1 1 320px; }
     header a { color: var(--accent); }
-    .status { font-size: 13px; padding: 3px 10px; border-radius: 99px; background: var(--soft); color: var(--muted); white-space: nowrap; }
+    .loading { position: relative; overflow: hidden; display: flex; gap: 12px; align-items: center; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--accent); border-radius: 10px; background: var(--soft); }
+    .loading b { display: block; font-size: 15px; }
+    .loading small { display: block; color: var(--muted); font-size: 13px; }
+    .loading .elapsed { font-variant-numeric: tabular-nums; }
+    .spinner { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 3px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+    .loading .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; overflow: hidden; }
+    .loading .bar i { position: absolute; top: 0; bottom: 0; width: 35%; background: var(--accent); animation: slide 1.4s ease-in-out infinite; }
+    .loading.slow { border-color: var(--err); }
+    .loading.slow .bar i { background: var(--err); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes slide { from { left: -35%; } to { left: 100%; } }
+    @media (prefers-reduced-motion: reduce) { .spinner, .loading .bar i { animation-duration: 3s; } }
     .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
     h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
     h2 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
@@ -87,7 +98,8 @@
     .pannable.panning * { cursor: grabbing; }
     .tree-head { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
     .tree-head .tabs { margin-bottom: 10px; }
-    #fit { margin-left: auto; }
+    .tree-actions { display: flex; gap: 4px; margin-left: auto; margin-bottom: 10px; }
+    .tree-actions .tab { white-space: nowrap; }
     .tree-box text { font: 13px var(--mono); fill: var(--ink); }
     .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 8px; }
     .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid; vertical-align: -1px; margin-right: 5px; }
@@ -155,14 +167,19 @@
   <header>
     <h1>Expression Parser</h1>
     <p>Type a formula to see how <a href="https://github.com/Andrew1407/expression_parser">expression_parser</a> tokenizes it, builds and balances its tree, finds equivalent forms and simulates it on a pipelined conveyor. It's the same Python code, running in your browser.</p>
-    <span class="status" id="status">Loading Python…</span>
   </header>
 
   <section class="panel">
     <form class="input-row" id="form" autocomplete="off">
-      <input id="expr" spellcheck="false" aria-label="Expression" value="a*(b+c) - d/e*f">
+      <input id="expr" spellcheck="false" aria-label="Expression" value="-(a+b)*sin(x) - c*(d+e)/cos(y)">
       <button id="go" disabled>Parse</button>
     </form>
+    <div class="loading" id="status" role="status" aria-live="polite">
+      <span class="spinner" aria-hidden="true"></span>
+      <div><b id="status-title">Loading the Python runtime… <span class="elapsed" id="elapsed"></span></b>
+        <small id="status-note">The first visit downloads about 10 MB, after that it's cached. Results will appear as soon as it's ready.</small></div>
+      <div class="bar" aria-hidden="true"><i></i></div>
+    </div>
     <div class="examples" id="examples"><span>Try</span></div>
     <p class="hint">Operators <code>+ - * / ^</code>, unary <code>+ -</code>, parentheses, numbers, variables and functions <code>sin cos rand max min pow</code>.</p>
   </section>
@@ -175,6 +192,7 @@
 <script>
 (() => {
   const EXAMPLES = [
+    '-(a+b)*sin(x) - c*(d+e)/cos(y)',
     'a*(b+c) - d/e*f',
     'a+b+c+d+e+f+g+h',
     '(a+b)*(c+d)',
@@ -200,8 +218,19 @@
     ex.appendChild(b);
   }
 
+  const started = Date.now();
+  const tick = setInterval(() => {
+    const sec = Math.round((Date.now() - started) / 1000);
+    $('#elapsed').textContent = sec ? `${sec} s` : '';
+    if (sec === 45) {
+      status.classList.add('slow');
+      $('#status-note').textContent = 'This is taking longer than usual. Check your connection, or reload the page.';
+    }
+  }, 1000);
+
   window.addEventListener('py-ready', () => {
     ready = true; btn.disabled = false;
+    clearInterval(tick);
     status.hidden = true;
     run();
   });
@@ -300,7 +329,7 @@
         <button class="tab" role="tab" data-tree="syntax_tree" aria-selected="false">Syntax<span class="long"> tree</span></button>
         <button class="tab" role="tab" data-tree="parallel_tree" aria-selected="true">Parallel<span class="long"> tree</span></button>
         <button class="tab" role="tab" data-tree="normalized_tree" aria-selected="false">Normalized<span class="long"> tree</span></button>
-      </div><button class="tab" id="fit" type="button" title="Toggle between fit-to-width and actual size" aria-pressed="${fitTree}">${fitTree ? '100%' : 'Fit'}</button></div>
+      </div><div class="tree-actions"><button class="tab" id="copy-img" type="button" title="Copy the tree to the clipboard as a PNG image">Copy image</button><button class="tab" id="fit" type="button" hidden></button></div></div>
       <div class="tree-meta" id="tree-meta"></div>
       <div class="tree-box${fitTree ? ' fit' : ''}" id="tree-box"></div>
       <div class="legend">
@@ -316,7 +345,22 @@
     const depth = key === 'syntax_tree' ? d.depth.syntax : d.depth.parallel;
     $('#tree-meta').innerHTML = `${esc(d.forms[formKey])}<br><span style="font-family:system-ui">depth ${depth}${key !== 'syntax_tree' ? ` (syntax tree: ${d.depth.syntax})` : ''}</span>`;
     $('#tree-box').innerHTML = drawTree(d[key]);
+    updateFit();
   }
+
+  // The fit/actual-size toggle only matters when the tree is wider than its box.
+  function updateFit() {
+    const box = $('#tree-box'), btn = $('#fit'), svg = box && box.querySelector('svg');
+    if (!svg) return;
+    const cs = getComputedStyle(box);
+    const room = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const tooWide = +svg.getAttribute('width') > room + 1;
+    btn.hidden = !tooWide;
+    btn.textContent = fitTree ? 'Actual size' : 'Fit to width';
+    btn.title = fitTree ? 'Tree is scaled down to fit. Show it at full size (drag to scroll)' : 'Scale the tree down to fit the box';
+    btn.setAttribute('aria-pressed', !fitTree);
+  }
+  window.addEventListener('resize', updateFit);
 
   function equivPanel(d) {
     if (d.forms_skipped) return `<section class="panel"><h2>Equivalent forms</h2><p class="muted" style="margin:0">Skipped: this expression has ${d.operations} operations, and the number of distributive and commutative forms roughly doubles with each one. The showcase generates them for up to ${d.forms_skipped.limit} operations so the page stays responsive. The CLI (<code>python main.py</code>) has no such limit.</p></section>`;
@@ -352,6 +396,66 @@
     $('#sim').innerHTML = `<p class="sim-expr">${esc(r.expression)}</p>
       <div class="stats">${stat(s.sequential, 'sequential tacts')}${stat(s.dynamic, 'conveyor tacts')}${stat(s.acceleration, 'acceleration')}${stat(s.efficiency, 'efficiency')}</div>
       <div class="table-wrap"><table class="sim-grid"><thead><tr><th class="num">Step</th><th class="num">Tacts</th>${head}</tr></thead><tbody>${rows}</tbody></table></div><ul class="defs">${defs}</ul>`;
+  }
+
+  // Render the visible tree SVG to a PNG blob: CSS variables are resolved to the
+  // current theme's colours so the image looks like what's on screen.
+  function treePng(scale = 2) {
+    const svg = $('#tree-box svg');
+    const css = getComputedStyle(document.documentElement);
+    const resolve = (v) => v && v.replace(/var\((--[\w-]+)\)/g, (_, name) => css.getPropertyValue(name).trim());
+    const clone = svg.cloneNode(true);
+    const w = +svg.getAttribute('width'), h = +svg.getAttribute('height');
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.removeAttribute('style');
+    clone.querySelectorAll('title').forEach((t) => t.remove());
+    clone.querySelectorAll('[fill], [stroke]').forEach((el) => {
+      for (const a of ['fill', 'stroke']) if (el.hasAttribute(a)) el.setAttribute(a, resolve(el.getAttribute(a)));
+    });
+    const font = getComputedStyle(svg.querySelector('text') || svg).fontFamily;
+    clone.querySelectorAll('text').forEach((t) => {
+      t.setAttribute('fill', css.getPropertyValue('--ink').trim());
+      t.setAttribute('font-family', font);
+      t.setAttribute('font-size', '13');
+    });
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bg.setAttribute('width', '100%'); bg.setAttribute('height', '100%');
+    bg.setAttribute('fill', css.getPropertyValue('--bg').trim());
+    clone.insertBefore(bg, clone.firstChild);
+    const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' }));
+    return new Promise((resolveP, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = w * scale; c.height = h * scale;
+        const ctx = c.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        c.toBlob((b) => (b ? resolveP(b) : reject(new Error('PNG encoding failed'))), 'image/png');
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('SVG render failed')); };
+      img.src = url;
+    });
+  }
+
+  async function copyTreeImage(btn) {
+    const done = (text) => { btn.textContent = text; setTimeout(() => (btn.textContent = 'Copy image'), 1400); };
+    try {
+      // pass the promise straight to ClipboardItem so Safari keeps the user gesture
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': treePng() })]);
+      done('Copied');
+    } catch {
+      // no image clipboard (e.g. Firefox without permission, plain http): download instead
+      try {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(await treePng());
+        a.download = 'expression-tree.png';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        done('Downloaded');
+      } catch { done('Failed'); }
+    }
   }
 
   // Mouse drag-to-pan for overflowing boxes (touch keeps native scrolling).
@@ -392,11 +496,11 @@
     };
     group('#tree-tabs', 'tree', showTree);
     document.querySelectorAll('.tree-box, .table-wrap').forEach(enablePan);
+    $('#copy-img').onclick = (e) => copyTreeImage(e.currentTarget);
     $('#fit').onclick = () => {
       fitTree = !fitTree;
       $('#tree-box').classList.toggle('fit', fitTree);
-      $('#fit').textContent = fitTree ? '100%' : 'Fit';
-      $('#fit').setAttribute('aria-pressed', fitTree);
+      updateFit();
     };
     group('#sim-tabs', 'sim', showSim);
     document.querySelectorAll('.copy').forEach((b) => b.onclick = async () => {
