@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Expression Parser</title>
+  <meta name="description" content="Type a formula and see its tokens, syntax tree, parallel and normalized forms, equivalent forms and a pipelined-conveyor simulation. Runs the expression_parser Python package in your browser via PyScript.">
+  <link rel="stylesheet" href="https://pyscript.net/releases/2026.7.3/core.css">
+  <script type="module" src="https://pyscript.net/releases/2026.7.3/core.js"></script>
+  <style>
+    :root {
+      --bg: #f6f7f9; --panel: #ffffff; --ink: #1b1f24; --muted: #5d6673; --line: #dfe3e8;
+      --accent: #3557d6; --accent-ink: #ffffff; --soft: #eef1fb; --err: #c0362c; --err-soft: #fdecea; --ok: #1f8a4c;
+      --n-leaf: #d8ecfb; --n-leaf-b: #4a90c8; --n-bin: #fbf1cc; --n-bin-b: #b8971b;
+      --n-un: #d9f2df; --n-un-b: #3c9a55; --n-fn: #eadff7; --n-fn-b: #8152c2;
+      --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #111418; --panel: #191d23; --ink: #e6e9ee; --muted: #9aa4b2; --line: #2b313a;
+        --accent: #7c97ff; --accent-ink: #0d1117; --soft: #1f2636; --err: #ff7b72; --err-soft: #3a1d1c; --ok: #4fd18b;
+        --n-leaf: #17324a; --n-leaf-b: #5fa8e0; --n-bin: #3a3215; --n-bin-b: #d8b53a;
+        --n-un: #173622; --n-un-b: #59c27a; --n-fn: #2e2242; --n-fn-b: #a982e6;
+        color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #111418; --panel: #191d23; --ink: #e6e9ee; --muted: #9aa4b2; --line: #2b313a;
+      --accent: #7c97ff; --accent-ink: #0d1117; --soft: #1f2636; --err: #ff7b72; --err-soft: #3a1d1c; --ok: #4fd18b;
+      --n-leaf: #17324a; --n-leaf-b: #5fa8e0; --n-bin: #3a3215; --n-bin-b: #d8b53a;
+      --n-un: #173622; --n-un-b: #59c27a; --n-fn: #2e2242; --n-fn-b: #a982e6;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 28px 16px 64px; }
+    header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin-bottom: 20px; }
+    h1 { font-size: 24px; margin: 0; letter-spacing: -.01em; }
+    header p { margin: 0; color: var(--muted); flex: 1 1 320px; }
+    header a { color: var(--accent); }
+    .status { font-size: 13px; padding: 3px 10px; border-radius: 99px; background: var(--soft); color: var(--muted); white-space: nowrap; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+    h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+    h2 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+    .input-row { display: flex; gap: 10px; }
+    #expr { flex: 1; min-width: 0; font: 18px var(--mono); padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); }
+    #expr:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    button { font: inherit; cursor: pointer; }
+    #go { padding: 0 20px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+    #go:disabled { opacity: .5; cursor: wait; }
+    .examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; align-items: center; }
+    .examples span { color: var(--muted); font-size: 13px; margin-right: 4px; }
+    .chip { font: 13px var(--mono); padding: 4px 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid var(--line); border-radius: 99px; background: transparent; color: var(--ink); }
+    .chip:hover { border-color: var(--accent); color: var(--accent); }
+    .hint { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+    .hint code { font-family: var(--mono); }
+    .forms { display: grid; gap: 2px; }
+    .form { display: grid; grid-template-columns: 150px 1fr auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .form:last-child { border-bottom: 0; }
+    .form .k { font-weight: 600; }
+    .form .k small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+    .form code { font: 15px var(--mono); overflow-wrap: anywhere; }
+    .copy { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 6px; font-size: 12px; padding: 2px 8px; }
+    .same { color: var(--muted); font-size: 12px; margin-left: 6px; font-family: system-ui, sans-serif; }
+    .tokens { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tok { font: 14px var(--mono); padding: 3px 8px; border-radius: 6px; border: 1px solid; }
+    .tok small { font: 10px system-ui, sans-serif; opacity: .75; margin-left: 5px; }
+    .t-CONSTANT, .t-VARIABLE { background: var(--n-leaf); border-color: var(--n-leaf-b); }
+    .t-OPERATOR { background: var(--n-bin); border-color: var(--n-bin-b); }
+    .t-FUNCTION { background: var(--n-fn); border-color: var(--n-fn-b); }
+    .t-PARENTHESIS, .t-DELIMITER { background: transparent; border-color: var(--line); }
+    .err { background: var(--err-soft); border-color: var(--err); }
+    .err h2 { color: var(--err); }
+    .err pre { font: 16px/1.35 var(--mono); margin: 0 0 10px; overflow-x: auto; }
+    .err .caret { color: var(--err); font-weight: 700; }
+    .err ul { margin: 0; padding-left: 18px; }
+    .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+    .tab { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 8px; padding: 4px 12px; font-size: 14px; }
+    .tab[aria-selected="true"] { background: var(--soft); color: var(--ink); border-color: var(--accent); }
+    .tree-meta { font: 14px var(--mono); color: var(--muted); margin-bottom: 8px; overflow-wrap: anywhere; }
+    .tree-box { overflow: auto; max-height: 75vh; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 8px; }
+    .tree-box svg { display: block; margin: 0 auto; }
+    .tree-box.fit svg { max-width: 100%; height: auto; }
+    .pannable { cursor: grab; }
+    .pannable.panning { cursor: grabbing; user-select: none; }
+    .pannable.panning * { cursor: grabbing; }
+    .tree-head { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+    .tree-head .tabs { margin-bottom: 10px; }
+    #fit { margin-left: auto; }
+    .tree-box text { font: 13px var(--mono); fill: var(--ink); }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid; vertical-align: -1px; margin-right: 5px; }
+    .two { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 900px) { .two { grid-template-columns: 1fr 1fr; } }
+    .two .panel { margin-bottom: 0; }
+    ol.list { margin: 0; padding-left: 34px; max-height: 320px; overflow: auto; font: 14px/1.7 var(--mono); }
+    ol.list li::marker { color: var(--muted); font-size: 12px; }
+    .muted { color: var(--muted); }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+    .stat { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    .stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+    .stat span { font-size: 12px; color: var(--muted); }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    th { color: var(--muted); font-weight: 600; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    td.mono { font-family: var(--mono); }
+    td.expr { white-space: normal; overflow-wrap: anywhere; min-width: 220px; }
+    .defs { display: none; margin: 12px 0 0; padding: 0; list-style: none; font: 13px/1.8 var(--mono); }
+    .defs li span { color: var(--accent); }
+    td.slot { font-family: var(--mono); }
+    td.slot .lbl { color: var(--accent); }
+    td.slot.empty { color: var(--muted); }
+    .kind { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--soft); color: var(--muted); }
+    .kind.default { color: var(--accent); }
+    .sim-tabs { margin: 4px 0 10px; }
+    .sim-expr { font: 14px var(--mono); margin: 0 0 10px; overflow-wrap: anywhere; }
+    [hidden] { display: none !important; }
+    @media (max-width: 720px) {
+      .wrap { padding-top: 18px; }
+      h1 { font-size: 21px; }
+      .panel { padding: 14px; border-radius: 10px; }
+      .stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .stat b { font-size: 18px; }
+      /* forms: label + copy on one line, formula full width below */
+      .form { grid-template-columns: 1fr auto; gap: 4px 12px; }
+      .form code { grid-column: 1 / -1; grid-row: 2; }
+      .form .copy { grid-column: 2; grid-row: 1; }
+      .form .k small { display: inline; margin-left: 6px; }
+      /* bigger touch targets */
+      .chip { padding: 6px 12px; max-width: 46vw; }
+      .tab { padding: 7px 10px; font-size: 13px; }
+      .copy { padding: 5px 10px; }
+      /* conveyor grid: short labels in cells, definitions listed below */
+      .sim-grid .def, .long { display: none; }
+      .sim-grid th, .sim-grid td { padding: 6px; }
+      .defs { display: block; }
+      /* efficiency table becomes a card list */
+      .eff thead { display: none; }
+      .eff tr { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+      .eff td { border: 0; padding: 0; white-space: normal; text-align: left !important; }
+      .eff td.rank { grid-column: 1; color: var(--muted); }
+      .eff td.rank::before { content: "#"; }
+      .eff td.kindc { grid-column: 2 / -1; justify-self: end; }
+      .eff td.expr { grid-column: 1 / -1; min-width: 0; margin: 2px 0 4px; }
+      .eff td.m::before { content: attr(data-l); display: block; font-size: 11px; color: var(--muted); }
+    }
+    @media (max-width: 380px) { .stats { grid-template-columns: 1fr 1fr; } .stat { padding: 8px; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Expression Parser</h1>
+    <p>Type a formula to see how <a href="https://github.com/Andrew1407/expression_parser">expression_parser</a> tokenizes it, builds and balances its tree, finds equivalent forms and simulates it on a pipelined conveyor. It's the same Python code, running in your browser.</p>
+    <span class="status" id="status">Loading Python…</span>
+  </header>
+
+  <section class="panel">
+    <form class="input-row" id="form" autocomplete="off">
+      <input id="expr" spellcheck="false" aria-label="Expression" value="a*(b+c) - d/e*f">
+      <button id="go" disabled>Parse</button>
+    </form>
+    <div class="examples" id="examples"><span>Try</span></div>
+    <p class="hint">Operators <code>+ - * / ^</code>, unary <code>+ -</code>, parentheses, numbers, variables and functions <code>sin cos rand max min pow</code>.</p>
+  </section>
+
+  <div id="out"></div>
+</div>
+
+<script type="py" src="./bridge.py" config="./pyscript.toml"></script>
+
+<script>
+(() => {
+  const EXAMPLES = [
+    'a*(b+c) - d/e*f',
+    'a+b+c+d+e+f+g+h',
+    '(a+b)*(c+d)',
+    'max(a, b)*(c+d)*(e-f)',
+    '-(p + 3) + (-4 ^ 2)',
+    '(a/(b*c)^45)/-sin(206.6+-(-+(-(val_))^const))',
+    'a + (b',
+    '2 + * 3',
+  ];
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const input = $('#expr'), btn = $('#go'), out = $('#out'), status = $('#status');
+  let ready = false, lastRun = null, current = null, fitTree = true;
+
+  const initial = new URLSearchParams(location.search).get('e');
+  if (initial !== null) input.value = initial;
+
+  const ex = $('#examples');
+  for (const e of EXAMPLES) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.textContent = e; b.title = e;
+    b.onclick = () => { input.value = e; run(); };
+    ex.appendChild(b);
+  }
+
+  window.addEventListener('py-ready', () => {
+    ready = true; btn.disabled = false;
+    status.hidden = true;
+    run();
+  });
+
+  $('#form').addEventListener('submit', (e) => { e.preventDefault(); run(); });
+
+  function run() {
+    if (!ready) return;
+    const value = input.value;
+    if (value === lastRun) return;
+    lastRun = value;
+    try { history.replaceState(null, '', value ? `?e=${encodeURIComponent(value)}` : location.pathname); } catch {}
+    const data = JSON.parse(window.pyAnalyze(value));
+    current = data;
+    render(data);
+  }
+
+  function render(d) {
+    if (d.stage === 'empty') { out.innerHTML = ''; return; }
+    if (!d.ok) { out.innerHTML = errorPanel(d) + (d.tokens?.length ? tokensPanel(d.tokens) : ''); return; }
+    out.innerHTML = formsPanel(d) + tokensPanel(d.tokens) + treePanel(d) + equivPanel(d) + conveyorPanel(d);
+    bindTabs(d);
+  }
+
+  function errorPanel(d) {
+    const title = { parse: 'Parsing errors', syntax: 'Syntax error', crash: 'Unexpected error' }[d.stage] || 'Error';
+    let pre = '';
+    if (d.stage !== 'crash') {
+      const marks = new Set(d.errors.map((e) => e.position));
+      const width = Math.max(d.input.length, ...marks) + 1;
+      let caret = '';
+      for (let i = 0; i < width; i++) caret += marks.has(i) ? '^' : ' ';
+      pre = `<pre>${esc(d.input)}\n<span class="caret">${esc(caret.trimEnd())}</span></pre>`;
+    }
+    return `<section class="panel err"><h2>${title}</h2>${pre}<ul>${d.errors.map((e) => `<li>${esc(e.message)}</li>`).join('')}</ul></section>`;
+  }
+
+  function formsPanel(d) {
+    const rows = [
+      ['original', 'Original', 'as typed'],
+      ['syntax', 'Parsed', 'syntax tree, re-printed'],
+      ['parallel', 'Parallel', 'balanced, optimized tree'],
+      ['normalized', 'Normalized', 'parallel, brackets opened'],
+    ];
+    let prev = null;
+    const html = rows.map(([k, name, sub]) => {
+      const v = d.forms[k];
+      const same = prev !== null && v === prev ? '<span class="same">no change</span>' : '';
+      prev = v;
+      return `<div class="form"><div class="k">${name}<small>${sub}</small></div><code>${esc(v)}${same}</code><button class="copy" data-copy="${esc(v)}">Copy</button></div>`;
+    }).join('');
+    return `<section class="panel"><h2>Forms</h2><div class="forms">${html}</div></section>`;
+  }
+
+  function tokensPanel(tokens) {
+    const html = tokens.map((t) => `<span class="tok t-${t.type}" title="${t.type} · ${t.start}–${t.end}">${esc(t.value)}<small>${TOK[t.type] || ''}</small></span>`).join('');
+    return `<section class="panel"><h2>Tokens <small>· ${tokens.length}</small></h2><div class="tokens">${html || '<span class="muted">none</span>'}</div></section>`;
+  }
+
+  const TOK = { CONSTANT: 'num', VARIABLE: 'var', OPERATOR: 'op', FUNCTION: 'fn', PARENTHESIS: '', DELIMITER: '' };
+
+  // ---- tree drawing -------------------------------------------------------
+  const KIND = {
+    Node: ['--n-leaf', '--n-leaf-b'], BinaryOperatorNode: ['--n-bin', '--n-bin-b'],
+    UnaryOperatorNode: ['--n-un', '--n-un-b'], FunctionNode: ['--n-fn', '--n-fn-b'],
+  };
+  function drawTree(root) {
+    const R = 17, DX = 46, DY = 62, PAD = 24;
+    let slot = 0, maxDepth = 0;
+    const nodes = [], edges = [];
+    (function place(n, depth) {
+      maxDepth = Math.max(maxDepth, depth);
+      const kids = n.children.filter(Boolean);
+      kids.forEach((c) => place(c, depth + 1));
+      n._y = depth;
+      if (!kids.length) n._x = slot++;
+      else n._x = (kids[0]._x + kids[kids.length - 1]._x) / 2;
+      kids.forEach((c) => edges.push([n, c]));
+      nodes.push(n);
+    })(root, 0);
+    const w = Math.max(1, slot) * DX + PAD * 2 - DX + 2 * R, h = maxDepth * DY + PAD * 2 + 2 * R;
+    const X = (n) => PAD + R + n._x * DX, Y = (n) => PAD + R + n._y * DY;
+    const lines = edges.map(([a, b]) => `<line x1="${X(a)}" y1="${Y(a)}" x2="${X(b)}" y2="${Y(b)}" stroke="var(--muted)" stroke-width="1.2" opacity=".6"/>`).join('');
+    const circles = nodes.map((n) => {
+      const [f, s] = KIND[n.kind] || KIND.Node;
+      const label = n.label.length > 6 ? n.label.slice(0, 5) + '…' : n.label;
+      const rx = Math.max(R, label.length * 4.2 + 8);
+      return `<g><title>${esc(n.label)} (${n.kind.replace('Node', '') || 'Leaf'})</title><ellipse cx="${X(n)}" cy="${Y(n)}" rx="${rx}" ry="${R}" fill="var(${f})" stroke="var(${s})" stroke-width="1.5"/><text x="${X(n)}" y="${Y(n)}" text-anchor="middle" dominant-baseline="central">${esc(label)}</text></g>`;
+    }).join('');
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Expression tree">${lines}${circles}</svg>`;
+  }
+
+  function treePanel(d) {
+    return `<section class="panel"><h2>Tree</h2>
+      <div class="tree-head"><div class="tabs" role="tablist" id="tree-tabs">
+        <button class="tab" role="tab" data-tree="syntax_tree" aria-selected="false">Syntax<span class="long"> tree</span></button>
+        <button class="tab" role="tab" data-tree="parallel_tree" aria-selected="true">Parallel<span class="long"> tree</span></button>
+        <button class="tab" role="tab" data-tree="normalized_tree" aria-selected="false">Normalized<span class="long"> tree</span></button>
+      </div><button class="tab" id="fit" type="button" title="Toggle between fit-to-width and actual size" aria-pressed="${fitTree}">${fitTree ? '100%' : 'Fit'}</button></div>
+      <div class="tree-meta" id="tree-meta"></div>
+      <div class="tree-box${fitTree ? ' fit' : ''}" id="tree-box"></div>
+      <div class="legend">
+        <span><i style="background:var(--n-leaf);border-color:var(--n-leaf-b)"></i>operand</span>
+        <span><i style="background:var(--n-bin);border-color:var(--n-bin-b)"></i>binary operator</span>
+        <span><i style="background:var(--n-un);border-color:var(--n-un-b)"></i>unary operator</span>
+        <span><i style="background:var(--n-fn);border-color:var(--n-fn-b)"></i>function</span>
+      </div></section>`;
+  }
+
+  function showTree(d, key) {
+    const formKey = { syntax_tree: 'syntax', parallel_tree: 'parallel', normalized_tree: 'normalized' }[key];
+    const depth = key === 'syntax_tree' ? d.depth.syntax : d.depth.parallel;
+    $('#tree-meta').innerHTML = `${esc(d.forms[formKey])}<br><span style="font-family:system-ui">depth ${depth}${key !== 'syntax_tree' ? ` (syntax tree: ${d.depth.syntax})` : ''}</span>`;
+    $('#tree-box').innerHTML = drawTree(d[key]);
+  }
+
+  function equivPanel(d) {
+    if (d.forms_skipped) return `<section class="panel"><h2>Equivalent forms</h2><p class="muted" style="margin:0">Skipped: this expression has ${d.operations} operations, and the number of distributive and commutative forms roughly doubles with each one. The showcase generates them for up to ${d.forms_skipped.limit} operations so the page stays responsive. The CLI (<code>python main.py</code>) has no such limit.</p></section>`;
+    const list = (f, name) => `<section class="panel"><h2>${name} <small>· ${f.total} unique${f.total > f.items.length ? `, showing ${f.items.length}` : ''}</small></h2>${
+      f.items.length ? `<ol class="list">${f.items.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>` : '<p class="muted" style="margin:0">No forms beyond the normalized one.</p>'}</section>`;
+    return `<div class="two" style="margin-bottom:16px">${list(d.distributive, 'Distributive forms')}${list(d.commutative, 'Commutative forms')}</div>`;
+  }
+
+  function conveyorPanel(d) {
+    const c = d.conveyor;
+    const tabs = [['default', 'Normalized<span class="long"> expression</span>']];
+    if (c.distributive) tabs.push(['distributive', 'Distributive<span class="long"> form</span>']);
+    if (c.commutative) tabs.push(['commutative', 'Commutative<span class="long"> form</span>']);
+    const dur = c.durations;
+    const table = c.table.map((r, i) => `<tr><td class="num rank">${i + 1}</td><td class="kindc"><span class="kind ${r.kind}">${r.kind}</span></td><td class="mono expr">${esc(r.expression)}</td><td class="num m" data-l="Sequential">${r.sequential}</td><td class="num m" data-l="Dynamic">${r.dynamic}</td><td class="num m" data-l="Acceleration">${r.acceleration}</td><td class="num m" data-l="Efficiency">${r.efficiency}</td></tr>`).join('');
+    return `<section class="panel"><h2>Conveyor simulation <small>· ${c.layers} layers · tacts: + ${dur.PLUS}, − ${dur.MIN}, × ${dur.MUL}, ÷ ${dur.DIV}, ^ ${dur.POW}, f() ${dur.FUNCTION}</small></h2>
+      <div class="tabs sim-tabs" id="sim-tabs">${tabs.map(([k, n], i) => `<button class="tab" data-sim="${k}" aria-selected="${i === 0}">${n}</button>`).join('')}</div>
+      <div id="sim"></div>
+    </section>
+    <section class="panel"><h2>Efficiency table <small>· ${c.table_total} forms${c.table_total > c.table.length ? `, showing ${c.table.length}` : ''}, sorted by efficiency</small></h2>
+      <div class="table-wrap"><table class="eff"><thead><tr><th class="num">#</th><th>Kind</th><th>Expression</th><th class="num">Sequential</th><th class="num">Dynamic</th><th class="num">Acceleration</th><th class="num">Efficiency</th></tr></thead><tbody>${table}</tbody></table></div>
+    </section>`;
+  }
+
+  function showSim(d, key) {
+    const r = d.conveyor[key], s = r.sim;
+    const stat = (v, n) => `<div class="stat"><b>${v}</b><span>${n}</span></div>`;
+    const head = Array.from({ length: s.layers }, (_, i) => `<th>L<span class="long">ayer </span>${i + 1}</th>`).join('');
+    const rows = s.steps.map((st, i) => `<tr><td class="num">${i + 1}</td><td class="num">${st.tacts}</td>${st.layers.map((e) =>
+      e === null ? '<td class="slot empty">·</td>' :
+      `<td class="slot"><span class="lbl">${esc(e.label)}</span>${e.formula ? `<span class="def"> = ${esc(e.formula)}</span>` : ''}</td>`).join('')}</tr>`).join('');
+    const defs = s.steps.flatMap((st) => st.layers.filter((e) => e && e.formula)).map((e) => `<li><span>${esc(e.label)}</span> = ${esc(e.formula)}</li>`).join('');
+    $('#sim').innerHTML = `<p class="sim-expr">${esc(r.expression)}</p>
+      <div class="stats">${stat(s.sequential, 'sequential tacts')}${stat(s.dynamic, 'conveyor tacts')}${stat(s.acceleration, 'acceleration')}${stat(s.efficiency, 'efficiency')}</div>
+      <div class="table-wrap"><table class="sim-grid"><thead><tr><th class="num">Step</th><th class="num">Tacts</th>${head}</tr></thead><tbody>${rows}</tbody></table></div><ul class="defs">${defs}</ul>`;
+  }
+
+  // Mouse drag-to-pan for overflowing boxes (touch keeps native scrolling).
+  function enablePan(el) {
+    if (el._pan) return;
+    el._pan = true;
+    const update = () => el.classList.toggle('pannable', el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1);
+    new ResizeObserver(update).observe(el);
+    new MutationObserver(update).observe(el, { childList: true, subtree: true });
+    update();
+    let start = null;
+    el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse' || e.button !== 0 || !el.classList.contains('pannable')) return;
+      start = { x: e.clientX, y: e.clientY, l: el.scrollLeft, t: el.scrollTop };
+      el.setPointerCapture(e.pointerId);
+      el.classList.add('panning');
+      e.preventDefault();
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!start) return;
+      el.scrollLeft = start.l - (e.clientX - start.x);
+      el.scrollTop = start.t - (e.clientY - start.y);
+    });
+    const end = () => { start = null; el.classList.remove('panning'); };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
+
+  function bindTabs(d) {
+    const group = (sel, attr, fn) => {
+      const tabs = document.querySelectorAll(`${sel} .tab`);
+      tabs.forEach((t) => t.onclick = () => {
+        tabs.forEach((x) => x.setAttribute('aria-selected', x === t));
+        fn(d, t.dataset[attr]);
+      });
+      const sel0 = [...tabs].find((t) => t.getAttribute('aria-selected') === 'true');
+      fn(d, sel0.dataset[attr]);
+    };
+    group('#tree-tabs', 'tree', showTree);
+    document.querySelectorAll('.tree-box, .table-wrap').forEach(enablePan);
+    $('#fit').onclick = () => {
+      fitTree = !fitTree;
+      $('#tree-box').classList.toggle('fit', fitTree);
+      $('#fit').textContent = fitTree ? '100%' : 'Fit';
+      $('#fit').setAttribute('aria-pressed', fitTree);
+    };
+    group('#sim-tabs', 'sim', showSim);
+    document.querySelectorAll('.copy').forEach((b) => b.onclick = async () => {
+      try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = 'Copied'; setTimeout(() => b.textContent = 'Copy', 1200); } catch {}
+    });
+  }
+})();
+</script>
+</body>
+</html>
