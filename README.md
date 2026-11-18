@@ -1,5 +1,11 @@
 # Expression parser
 
+<p align="center">
+  <a href="https://andrew1407.github.io/expression_parser/" title="Open the app in the browser">
+    <img src="web/icon.svg" alt="Expression parser" width="96" height="96">
+  </a>
+</p>
+
 [![main workflow badge](https://github.com/andrew1407/expression_parser/actions/workflows/main.yml/badge.svg)](https://github.com/andrew1407/expression_parser/actions) [![pages deploy badge](https://github.com/andrew1407/expression_parser/actions/workflows/pages.yml/badge.svg)](https://andrew1407.github.io/expression_parser/)
 
 ## Description
