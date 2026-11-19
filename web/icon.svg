@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" data-badge="1">
   <!-- Syntax tree of a + b * c, in the showcase's node colours, on a round outlined badge -->
-  <circle cx="32" cy="32" r="30.5" fill="#ffffff" stroke="#3557d6" stroke-width="3"/>
-  <svg x="12.5" y="12.5" width="39" height="39" viewBox="-1 -1 66 66">
+  <circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#3557d6" stroke-width="4"/>
+  <svg x="12.25" y="12.25" width="39.5" height="39.5" viewBox="1.7 0.2 63.6 63.6">
     <g stroke="#3557d6" stroke-width="3" stroke-linecap="round">
     <path d="M30 11 12 37M30 11 45 31M45 31 34 53M45 31 55 53"/>
     </g>
