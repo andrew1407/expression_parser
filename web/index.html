@@ -6,9 +6,8 @@
   <title>Expression Parser</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <script src="theme.js"></script>
-  <meta name="description" content="Type a formula and see its tokens, syntax tree, parallel and normalized forms, equivalent forms and a pipelined-conveyor simulation. Runs the expression_parser Python package in your browser via PyScript.">
-  <link rel="stylesheet" href="https://pyscript.net/releases/2026.7.3/core.css">
-  <script type="module" src="https://pyscript.net/releases/2026.7.3/core.js"></script>
+  <meta name="description" content="Type a formula and see its tokens, syntax tree, parallel and normalized forms, equivalent forms and a pipelined-conveyor simulation. Runs the expression_parser Python package in your browser via Pyodide.">
+  <script type="module" src="./pyworker.js"></script>
   <style>
     :root {
       --bg: #f6f7f9; --panel: #ffffff; --ink: #1b1f24; --muted: #5d6673; --line: #dfe3e8;
@@ -194,8 +193,6 @@
   <div id="out"></div>
 </div>
 
-<script type="py" src="./bridge.py" config="./pyscript.toml"></script>
-
 <script>
 (() => {
   const EXAMPLES = [
@@ -212,7 +209,7 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const input = $('#expr'), btn = $('#go'), out = $('#out'), status = $('#status');
-  let ready = false, lastRun = null, current = null, fitTree = true;
+  let ready = false, busy = false, pendingRun = false, lastRun = null, current = null, fitTree = true;
 
   const initial = new URLSearchParams(location.search).get('e');
   if (initial !== null) input.value = initial;
@@ -241,18 +238,44 @@
     status.hidden = true;
     run();
   });
+  window.addEventListener('py-failed', () => {
+    clearInterval(tick);
+    status.classList.add('slow');
+    $('#status-title').textContent = 'The Python runtime failed to start';
+    $('#status-note').textContent = 'Reload the page to try again. The browser console has the details.';
+  });
+
+  // Python runs in a worker, so the page stays responsive; show how long a run takes.
+  function showRunning() {
+    const t0 = Date.now();
+    const draw = () => {
+      $('#status-title').innerHTML = `Running… <span class="elapsed">${Math.floor((Date.now() - t0) / 1000)} s</span>`;
+    };
+    draw();
+    $('#status-note').textContent = 'Large expressions have many equivalent forms to generate, so this can take a few seconds.';
+    const delay = setTimeout(() => { status.hidden = false; }, 150);
+    const timer = setInterval(draw, 250);
+    return () => { clearTimeout(delay); clearInterval(timer); status.hidden = true; };
+  }
 
   $('#form').addEventListener('submit', (e) => { e.preventDefault(); run(); });
 
-  function run() {
+  async function run() {
     if (!ready) return;
+    if (busy) { pendingRun = true; return; }
     const value = input.value;
     if (value === lastRun) return;
     lastRun = value;
     try { history.replaceState(null, '', value ? `?e=${encodeURIComponent(value)}` : location.pathname); } catch {}
-    const data = JSON.parse(window.pyAnalyze(value));
+    busy = true; btn.disabled = true;
+    const done = showRunning();
+    let data;
+    try { data = JSON.parse(await window.pyRun(value)); }
+    catch (e) { data = { input: value, ok: false, stage: 'crash', errors: [{ message: String(e) }] }; }
+    finally { done(); busy = false; btn.disabled = false; }
     current = data;
     render(data);
+    if (pendingRun) { pendingRun = false; run(); }
   }
 
   function render(d) {

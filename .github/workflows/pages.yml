@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Mirror the repo layout so web/pyscript.toml can load ../expression_parser/*.py
+      # Mirror the repo layout so web/pyodide.toml can load ../expression_parser/*.py
       - name: Assemble site
         run: |
           mkdir _site
