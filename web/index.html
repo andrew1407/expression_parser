@@ -74,7 +74,7 @@
     .form .k { font-weight: 600; }
     .form .k small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
     .form code { font: 15px var(--mono); overflow-wrap: anywhere; }
-    .copy { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 6px; font-size: 12px; padding: 2px 8px; }
+    .copy { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 6px; font-size: 12px; padding: 2px 8px; min-width: calc(3.4em + 18px); }
     .same { color: var(--muted); font-size: 12px; margin-left: 6px; font-family: system-ui, sans-serif; }
     .tokens { display: flex; flex-wrap: wrap; gap: 6px; }
     .tok { font: 14px var(--mono); padding: 3px 8px; border-radius: 6px; border: 1px solid; }
@@ -146,7 +146,7 @@
       /* bigger touch targets */
       .chip { padding: 6px 12px; max-width: 46vw; }
       .tab { padding: 7px 10px; font-size: 13px; }
-      .copy { padding: 5px 10px; }
+      .copy { padding: 5px 10px; min-width: calc(3.4em + 22px); }
       /* conveyor grid: short labels in cells, definitions listed below */
       .sim-grid .def, .long { display: none; }
       .sim-grid th, .sim-grid td { padding: 6px; }
@@ -470,7 +470,7 @@
   }
 
   async function copyTreeImage(btn) {
-    const done = (text) => { btn.textContent = text; setTimeout(() => (btn.textContent = 'Copy image'), 1400); };
+    const done = (text) => { btn.style.minWidth = btn.style.minWidth || btn.getBoundingClientRect().width + 'px'; btn.textContent = text; setTimeout(() => (btn.textContent = 'Copy image'), 1400); };
     try {
       // pass the promise straight to ClipboardItem so Safari keeps the user gesture
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': treePng() })]);
