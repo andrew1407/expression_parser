@@ -1,22 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" data-badge="1">
-  <!-- Syntax tree of a + b * c, in the showcase's node colours, on a round outlined badge -->
-  <circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#3557d6" stroke-width="4"/>
+  <!-- Syntax tree of a + b * c, in peach node colours, on a round outlined badge -->
+  <circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#ec7a4f" stroke-width="4"/>
   <svg x="12.25" y="12.25" width="39.5" height="39.5" viewBox="1.7 0.2 63.6 63.6">
-    <g stroke="#3557d6" stroke-width="3" stroke-linecap="round">
+    <g stroke="#ec7a4f" stroke-width="3" stroke-linecap="round">
     <path d="M30 11 12 37M30 11 45 31M45 31 34 53M45 31 55 53"/>
     </g>
     <g stroke-width="2.6">
     <circle cx="30" cy="11" r="8.5" fill="#fbf1cc" stroke="#b8971b"/>
     <circle cx="45" cy="31" r="8.5" fill="#fbf1cc" stroke="#b8971b"/>
-    <circle cx="12" cy="37" r="8.5" fill="#d8ecfb" stroke="#4a90c8"/>
-    <circle cx="34" cy="53" r="8.5" fill="#d8ecfb" stroke="#4a90c8"/>
-    <circle cx="55" cy="53" r="8.5" fill="#d8ecfb" stroke="#4a90c8"/>
+    <circle cx="12" cy="37" r="8.5" fill="#ffe7da" stroke="#f4a27e"/>
+    <circle cx="34" cy="53" r="8.5" fill="#ffe7da" stroke="#f4a27e"/>
+    <circle cx="55" cy="53" r="8.5" fill="#ffe7da" stroke="#f4a27e"/>
     </g>
     <g stroke="#8a6d0b" stroke-width="2.6" stroke-linecap="round">
     <path d="M25.5 11h9M30 6.5v9"/>
     <path d="M41.8 27.8l6.4 6.4M48.2 27.8l-6.4 6.4"/>
     </g>
-    <g fill="#1f4f80" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="13" text-anchor="middle">
+    <g fill="#9c4421" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="13" text-anchor="middle">
     <text x="12" y="41.5">a</text>
     <text x="34" y="57.5">b</text>
     <text x="55" y="57.5">c</text>
